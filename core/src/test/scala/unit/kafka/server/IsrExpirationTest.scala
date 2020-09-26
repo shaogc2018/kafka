@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import kafka.cluster.Partition
 import kafka.log.{Log, LogManager}
+import kafka.utils.TestUtils.MockAlterIsrManager
 import kafka.utils._
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.metrics.Metrics
@@ -39,6 +40,7 @@ class IsrExpirationTest {
   val replicaLagTimeMaxMs = 100L
   val replicaFetchWaitMaxMs = 100
   val leaderLogEndOffset = 20
+  val leaderLogHighWatermark = 20L
 
   val overridingProps = new Properties()
   overridingProps.put(KafkaConfig.ReplicaLagTimeMaxMsProp, replicaLagTimeMaxMs.toString)
@@ -51,15 +53,18 @@ class IsrExpirationTest {
 
   var replicaManager: ReplicaManager = null
 
+  var alterIsrManager: MockAlterIsrManager = _
+
   @Before
   def setUp(): Unit = {
     val logManager: LogManager = EasyMock.createMock(classOf[LogManager])
     EasyMock.expect(logManager.liveLogDirs).andReturn(Array.empty[File]).anyTimes()
     EasyMock.replay(logManager)
 
+    alterIsrManager = TestUtils.createAlterIsrManager()
     replicaManager = new ReplicaManager(configs.head, metrics, time, null, null, logManager, new AtomicBoolean(false),
       QuotaFactory.instantiate(configs.head, metrics, time, ""), new BrokerTopicStats, new MetadataCache(configs.head.brokerId),
-      new LogDirFailureChannel(configs.head.logDirs.size))
+      new LogDirFailureChannel(configs.head.logDirs.size), alterIsrManager)
   }
 
   @After
@@ -213,7 +218,9 @@ class IsrExpirationTest {
 
     partition.updateAssignmentAndIsr(
       assignment = configs.map(_.brokerId),
-      isr = configs.map(_.brokerId).toSet
+      isr = configs.map(_.brokerId).toSet,
+      addingReplicas = Seq.empty,
+      removingReplicas = Seq.empty
     )
 
     // set lastCaughtUpTime to current time
@@ -234,6 +241,7 @@ class IsrExpirationTest {
     EasyMock.expect(log.dir).andReturn(TestUtils.tempDir()).anyTimes()
     EasyMock.expect(log.logEndOffsetMetadata).andReturn(LogOffsetMetadata(leaderLogEndOffset)).anyTimes()
     EasyMock.expect(log.logEndOffset).andReturn(leaderLogEndOffset).anyTimes()
+    EasyMock.expect(log.highWatermark).andReturn(leaderLogHighWatermark).anyTimes()
     EasyMock.replay(log)
     log
   }

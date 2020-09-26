@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.common.record;
 
+import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.utils.ByteUtils;
@@ -534,7 +535,8 @@ public class DefaultRecord implements Record {
             if (headerKeySize < 0)
                 throw new InvalidRecordException("Invalid negative header key size " + headerKeySize);
 
-            String headerKey = Utils.utf8(buffer, headerKeySize);
+            ByteBuffer headerKeyBuffer = buffer.slice();
+            headerKeyBuffer.limit(headerKeySize);
             buffer.position(buffer.position() + headerKeySize);
 
             ByteBuffer headerValue = null;
@@ -545,7 +547,7 @@ public class DefaultRecord implements Record {
                 buffer.position(buffer.position() + headerValueSize);
             }
 
-            headers[i] = new RecordHeader(headerKey, headerValue);
+            headers[i] = new RecordHeader(headerKeyBuffer, headerValue);
         }
 
         return headers;

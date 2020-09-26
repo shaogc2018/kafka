@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.common.record;
 
+import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.utils.ByteBufferInputStream;
@@ -269,7 +270,7 @@ public class DefaultRecordTest {
         DefaultRecord.readPartiallyFrom(inputStream, skipArray, 0L, 0L, RecordBatch.NO_SEQUENCE, null);
     }
 
-    @Test(expected = StringIndexOutOfBoundsException.class)
+    @Test(expected = InvalidRecordException.class)
     public void testInvalidHeaderKey() {
         byte attributes = 0;
         long timestampDelta = 2;
